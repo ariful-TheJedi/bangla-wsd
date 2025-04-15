@@ -1,0 +1,86 @@
+
+
+
+
+promt-01(sentance list)
+===========================
+Generate a list of 50 unique and diverse Bangla sentences from Bangla literature or written style where the word "চাঁদা" is used in the sense of "তহবিল সংগ্রহ" (fundraising or collection of funds). Ensure that:
+
+1.The usage of "চাঁদা" should appear in various sentence positions (not always at the beginning) to help balance the contextual learning of a machine learning algorithm.
+
+2.The sentences must be natural, broad in context, and clearly distinct from one another so that the algorithm can learn diverse usage patterns.
+
+Avoid repeated or template-like constructions.
+
+After generating the sentences, convert them into the following JSON format:
+{
+  "sense": "Name of the sence",
+  "examples": [
+    "Sentence 1...",
+    "Sentence 2...",
+    ...
+    "Sentence 50..."
+  ]
+}
+
+
+
+
+promt-02(list of senses)
+=========================
+The word "word" in Bangla has polysemy and homonymy.
+
+#Polysemy means that the word carries multiple related meanings depending on the context.
+
+#Homonymy means that the word has different meanings that may not be related at all.
+
+Please:
+
+1.Identify 5 different senses (meanings) of the word in Bangla, addressing both polysemy and homonymy.
+
+2.For each sense, provide a word that brief and explain Bangla that describes the meaning and context in which it is used.
+
+3.Ensure that the meanings are distinct from one another, highlighting both related meanings (polysemy) and unrelated meanings (homonymy).
+
+4.Include examples
+
+
+
+promt-03(sentance list)
+===========================
+"sence" অর্থে  'Word' শব্দটি ব্যবহার করে বাংলা সাহিত্য বা লিখিত শৈলীতে ৫০টি ইউনিক এবং বৈচিত্র্যময় বাক্য তৈরি করুন। নিশ্চিত করুন যে:
+
+1. শব্দটির ব্যবহার বিভিন্ন স্থানে (শুরুর স্থান নয়) থাকতে হবে, যাতে মেশিন লার্নিং অ্যালগোরিদমের জন্য প্রাসঙ্গিক শিক্ষণ পরিবেশ তৈরি হয়।
+
+2. বাক্যগুলো প্রাকৃতিক, প্রেক্ষিত-ভিত্তিক এবং স্পষ্টভাবে আলাদা হতে হবে, যাতে অ্যালগোরিদম বৈচিত্র্যময় ব্যবহার শিখতে পারে।
+
+3.বাক্য গুলো যাতে বাংলা সাহিত্য থেকে নেওয়া হয়
+
+প্রতিটি বাক্য তৈরির পরে, তা নিম্নলিখিত JSON ফরম্যাটে রূপান্তর করুন:
+{
+  "sense": "name of the sence",
+  "examples": [
+    "sentance 1...",
+    "sentance 2...",
+    ...
+    "sentances 50..."
+  ]
+}
+
+
+
+
+promt-04(list of senses bangla)
+================================
+বাংলা ভাষায় "শব্দ" শব্দটির পলিসেমি (polysemy) ও হোমোনিমি (homonymy) রয়েছে।
+
+পলিসেমি (polysemy) বোঝায়, যখন একটি শব্দ একাধিক সম্পর্কিত অর্থ বহন করে, প্রসঙ্গভেদে।
+
+হোমোনিমি (homonymy) বোঝায়, যখন একটি শব্দ একাধিক অসম্পর্কিত অর্থ বহন করে।
+
+অনুগ্রহ করে:
+
+১. শব্দটির ৫টি ভিন্ন অর্থ চিহ্নিত করুন, যেখানে পলিসেমি ও হোমোনিমি — দুটো দিকই তুলে ধরা হবে।
+২. প্রতিটি অর্থের জন্য একটি সংক্ষিপ্ত ব্যাখ্যা দিন বাংলায়, যেখানে সেই অর্থ কোন প্রেক্ষিতে ব্যবহৃত হয় তা বোঝানো হবে।
+৩. প্রতিটি অর্থ যেন পরস্পর থেকে ভিন্ন হয় — কিছু অর্থ যেন সম্পর্কিত হয় (পলিসেমি), আবার কিছু যেন একেবারে আলাদা হয় (হোমোনিমি)।
+৪. প্রতিটি অর্থের জন্য বাস্তব প্রেক্ষাপটে ব্যবহৃত একটি করে বাক্য দিন। 
