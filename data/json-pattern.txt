@@ -1,0 +1,21 @@
+//Every Word
+
+{
+"word":"....",
+"senses": [
+    {
+      "sense": "...",
+      "examples": [....]
+    },
+   {
+      "sense": "...",
+      "examples": [....]
+    },.....
+ ]
+}
+
+
+//main data
+{
+  "data":[wor1,word2,....]
+}
