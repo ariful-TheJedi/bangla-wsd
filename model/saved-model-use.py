@@ -43,7 +43,7 @@ if __name__ == "__main__":
     # predictor = BengaliWSD_Predictor("/content/drive/MyDrive/bangla_wsd_model")
     
     # For local (Linux/Mac):
-    predictor = BengaliWSD_Predictor("./bangla_wsd_model")
+    predictor = BengaliWSD_Predictor("./bangla_wsd_model")  #directory path where saved mode existed
     
     # For local (Windows):
     # predictor = BengaliWSD_Predictor(r"C:\path\to\bangla_wsd_model")
