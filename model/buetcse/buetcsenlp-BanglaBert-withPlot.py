@@ -172,7 +172,7 @@ def train_wsd_system():
     fm.fontManager.addfont(font_path)
     print("Font loaded:", font_prop.get_name())
 
-    # rcParams-এ সেট করুন যাতে এটি পুরো প্লটে প্রভাব ফেলে
+    # rcParams
     plt.rcParams['font.family'] = font_prop.get_name()
     # 1. Training and Eval Loss Plot
     loss_values = [log['loss'] for log in trainer.state.log_history if 'loss' in log]
@@ -185,35 +185,37 @@ def train_wsd_system():
     eval_acc_epochs = [log['epoch'] for log in trainer.state.log_history if 'eval_accuracy' in log]
 
     
-# # 1. Training and Eval Loss Plot
-#     if loss_values and loss_epochs:
-#        plt.figure(figsize=(10, 5))
-#        plt.plot(loss_epochs, loss_values, label='Training Loss')
-#        if eval_loss and eval_loss_epochs:
-#           plt.plot(eval_loss_epochs, eval_loss, label='Eval Loss', linestyle='--')
-#        plt.xlabel('Epoch')
-#        plt.ylabel('Loss')
-#        plt.title('Training and Evaluation Loss')
-#        plt.legend()
-#        plt.grid()
-#        plt.savefig(os.path.join(MODEL_OUTPUT_DIR, 'loss_plot.png'))
-#        plt.close()
-#     else:
-#        print("⚠️ Insufficient data to plot loss curves.")
+# ✅ 1. Training and Eval Loss Plot
+    if loss_values and loss_epochs and len(loss_values) == len(loss_epochs):
+       plt.figure(figsize=(10, 5))
+       plt.plot(loss_epochs, loss_values, label='Training Loss')
+       if eval_loss and eval_loss_epochs and len(eval_loss) == len(eval_loss_epochs):
+          plt.plot(eval_loss_epochs, eval_loss, label='Eval Loss', linestyle='--')
+       plt.xlabel('Epoch')
+       plt.ylabel('Loss')
+       plt.title('Training and Evaluation Loss')
+       plt.legend()
+       plt.grid()
+       plt.savefig(os.path.join(MODEL_OUTPUT_DIR, 'loss_plot.png'))
+       plt.close()
+    else:
+       print("⚠️ Insufficient or mismatched data to plot loss curves.")
 
-# # 2. Accuracy Plot
-#     if eval_acc and eval_acc_epochs:
-#        plt.figure(figsize=(10, 5))
-#        plt.plot(eval_acc_epochs, eval_acc, label='Eval Accuracy', color='green')
-#        plt.xlabel('Epoch')
-#        plt.ylabel('Accuracy')
-#        plt.title('Evaluation Accuracy per Epoch')
-#        plt.legend()
-#        plt.grid()
-#        plt.savefig(os.path.join(MODEL_OUTPUT_DIR, 'accuracy_plot.png'))
-#        plt.close()
-#     else:
-#        print("⚠️ Insufficient data to plot accuracy curve.")
+
+# ✅ 2. Accuracy Plot
+    if eval_acc and eval_acc_epochs and len(eval_acc) == len(eval_acc_epochs):
+       plt.figure(figsize=(10, 5))
+       plt.plot(eval_acc_epochs, eval_acc, label='Eval Accuracy', color='green')
+       plt.xlabel('Epoch')
+       plt.ylabel('Accuracy')
+       plt.title('Evaluation Accuracy per Epoch')
+       plt.legend()
+       plt.grid()
+       plt.savefig(os.path.join(MODEL_OUTPUT_DIR, 'accuracy_plot.png'))
+       plt.close()
+    else:
+       print("⚠️ Insufficient or mismatched data to plot accuracy curve.")
+
 
     # 3. Classification Report Heatmap
     target_labels = [processor.id2label[i] for i in range(len(processor.id2label))]
