@@ -1,8 +1,9 @@
+
 import json
 import os
 import torch
 import numpy as np
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support, classification_report, confusion_matrix
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from transformers import (
     AutoTokenizer,
     AutoModelForSequenceClassification,
@@ -11,50 +12,32 @@ from transformers import (
     DataCollatorWithPadding
 )
 from datasets import Dataset
-import matplotlib.pyplot as plt
+
+
+#for ploting(visualization)
+!pip install matplotlib seaborn scikit-learn
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import classification_report
 import seaborn as sns
-import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib as mpl
 import matplotlib.font_manager as fm
-from matplotlib.font_manager import FontProperties
-from PIL import Image, ImageDraw, ImageFont
-import shutil
-os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
 
-def find_bengali_font():
-    possible_paths = [
-        "./fonts/NotoSansBengali-Regular.ttf",
-        "/Library/Fonts/NotoSansBengali-Regular.ttf",  
-        "/Users/pcName/Library/Fonts/NotoSansBengali-Regular.ttf",
-    ]
-    for path in possible_paths:
-        if os.path.exists(path):
-            return FontProperties(fname=path)
-    raise FileNotFoundError("Noto Sans Bengali font not found. Please install it or put it in ./fonts/")
-
-# Load the font
-bengali_font = find_bengali_font()
-
-# Set it as default font for all plots
-plt.rcParams['font.family'] = bengali_font.get_name()
-
-# Optional: Confirm font name
-print("🔤 Using font:", bengali_font.get_name())
 
 
 # Configurations
 JSON_DATA_PATH = "./new-data.json"
 MODEL_NAME = "sagorsarker/bangla-bert-base"
-MODEL_OUTPUT_DIR = "sagorsarkar_bangla_wsd_model"
+MODEL_OUTPUT_DIR = "sagorsarker_bangla_bert_base"
 TRAIN_ARGS = {
     "learning_rate": 3e-5,
-    "num_train_epochs": 15,
-    "per_device_train_batch_size": 32,
-    "per_device_eval_batch_size": 64,
+    "num_train_epochs": 5,
+    "per_device_train_batch_size": 16,
+    "per_device_eval_batch_size": 32,
     "weight_decay": 0.01,
     "report_to": "none",
     "save_total_limit": 1
 }
-
 
 # Data Processor
 class BengaliWSDDataProcessor:
@@ -91,9 +74,6 @@ class BengaliWSDDataProcessor:
             'label': [self.label2id[ex['sense']] for ex in self.examples]
         })
 
-
-
-
 # Tokenization Function
 def tokenize_with_markers(batch, tokenizer):
     processed = {'input_ids': [], 'attention_mask': [], 'label': []}
@@ -110,14 +90,11 @@ def tokenize_with_markers(batch, tokenizer):
         processed['label'].append(label)
     return processed
 
-# Cleanup function for checkpoints
-def cleanup_checkpoints(output_dir):
-    checkpoint_dirs = [d for d in os.listdir(output_dir) if d.startswith("checkpoint-")]
-    for checkpoint in checkpoint_dirs:
-        shutil.rmtree(os.path.join(output_dir, checkpoint), ignore_errors=True)
-
-# Training Function
 def train_wsd_system():
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    from sklearn.metrics import classification_report, confusion_matrix
+
     # Load and split dataset
     processor = BengaliWSDDataProcessor(JSON_DATA_PATH)
     dataset = processor.get_dataset().train_test_split(test_size=0.2, seed=42)
@@ -140,28 +117,14 @@ def train_wsd_system():
         id2label=processor.id2label,
         label2id=processor.label2id
     )
-    model.config.id2label = processor.id2label
-    model.config.label2id = processor.label2id
     model.resize_token_embeddings(len(tokenizer))
-
-    # Lists to store metrics
-    train_metrics = {'epoch': [], 'loss': [], 'accuracy': []}
-    eval_metrics = {'epoch': [], 'loss': [], 'accuracy': []}
-    eval_predictions = []
-    eval_labels = []
 
     # Metrics function
     def compute_metrics(eval_pred):
         predictions = np.argmax(eval_pred.predictions, axis=1)
         labels = eval_pred.label_ids
-
         acc = accuracy_score(labels, predictions)
         precision, recall, f1, _ = precision_recall_fscore_support(labels, predictions, average='weighted', zero_division=0)
-        
-        # Store predictions and labels for confusion matrix
-        eval_predictions.extend(predictions.tolist())
-        eval_labels.extend(labels.tolist())
-
         return {
             'accuracy': acc,
             'precision': precision,
@@ -169,22 +132,8 @@ def train_wsd_system():
             'f1': f1
         }
 
-    # Custom Trainer to log metrics
-    class CustomTrainer(Trainer):
-        def log(self, logs):
-            super().log(logs)
-            epoch = logs.get('epoch', None)
-            if 'loss' in logs:
-                train_metrics['epoch'].append(epoch)
-                train_metrics['loss'].append(logs['loss'])
-                train_metrics['accuracy'].append(logs.get('eval_accuracy', 0))  # Approximate training accuracy if available
-            if 'eval_loss' in logs:
-                eval_metrics['epoch'].append(epoch)
-                eval_metrics['loss'].append(logs['eval_loss'])
-                eval_metrics['accuracy'].append(logs.get('eval_accuracy', 0))
-
-    # Training arguments and trainer
-    trainer = CustomTrainer(
+    # Trainer setup
+    trainer = Trainer(
         model=model,
         args=TrainingArguments(
             output_dir=MODEL_OUTPUT_DIR,
@@ -206,157 +155,104 @@ def train_wsd_system():
     print("🚀 Starting training...")
     trainer.train()
 
-    # Evaluate to get final metrics
-    eval_results = trainer.evaluate()
-
-    # # Quantize the model
-    # quantized_model = torch.quantization.quantize_dynamic(
-    #     trainer.model, {torch.nn.Linear}, dtype=torch.qint8
-    # )
-
-    # # Save quantized model
-    # quantized_model.save_pretrained(MODEL_OUTPUT_DIR)
-    # tokenizer.save_pretrained(MODEL_OUTPUT_DIR)
-
-    # Save the model and tokenizer
+    # Save model and tokenizer
     trainer.model.save_pretrained(MODEL_OUTPUT_DIR)
     tokenizer.save_pretrained(MODEL_OUTPUT_DIR)
+    print(f"✅ Model saved to {MODEL_OUTPUT_DIR}")
+
+    # 📊 PLOTS AND METRICS
+    print("📈 Generating plots and metrics...")
     
-    # # Clean up checkpoints
-    cleanup_checkpoints(MODEL_OUTPUT_DIR)
+    %matplotlib inline
+    font_path = "NotoSansBengali-Regular.ttf"
+    font_prop = fm.FontProperties(fname=font_path)
+    mpl.rcParams['font.family'] = font_prop.get_name()
+
+    # Register with Matplotlib's font manager
+    fm.fontManager.addfont(font_path)
+    print("Font loaded:", font_prop.get_name())
+
+    # rcParams
+    plt.rcParams['font.family'] = font_prop.get_name()
+    # 1. Training and Eval Loss Plot
+    loss_values = [log['loss'] for log in trainer.state.log_history if 'loss' in log]
+    loss_epochs = [log['epoch'] for log in trainer.state.log_history if 'loss' in log]
+
+    eval_loss = [log['eval_loss'] for log in trainer.state.log_history if 'eval_loss' in log]
+    eval_loss_epochs = [log['epoch'] for log in trainer.state.log_history if 'eval_loss' in log]
+
+    eval_acc = [log['eval_accuracy'] for log in trainer.state.log_history if 'eval_accuracy' in log]
+    eval_acc_epochs = [log['epoch'] for log in trainer.state.log_history if 'eval_accuracy' in log]
+
     
-    # Generate classification report
-    cls_report = classification_report(
-        eval_labels,
-        eval_predictions,
-        target_names=processor.sense_labels,
-        zero_division=0,
-        output_dict=True
+# ✅ 1. Training and Eval Loss Plot
+    if loss_values and loss_epochs and len(loss_values) == len(loss_epochs):
+       plt.figure(figsize=(10, 5))
+       plt.plot(loss_epochs, loss_values, label='Training Loss')
+       if eval_loss and eval_loss_epochs and len(eval_loss) == len(eval_loss_epochs):
+          plt.plot(eval_loss_epochs, eval_loss, label='Eval Loss', linestyle='--')
+       plt.xlabel('Epoch')
+       plt.ylabel('Loss')
+       plt.title('Training and Evaluation Loss')
+       plt.legend()
+       plt.grid()
+       plt.savefig(os.path.join(MODEL_OUTPUT_DIR, 'loss_plot.png'))
+       plt.close()
+    else:
+       print("⚠️ Insufficient or mismatched data to plot loss curves.")
+
+
+# ✅ 2. Accuracy Plot
+    if eval_acc and eval_acc_epochs and len(eval_acc) == len(eval_acc_epochs):
+       plt.figure(figsize=(10, 5))
+       plt.plot(eval_acc_epochs, eval_acc, label='Eval Accuracy', color='green')
+       plt.xlabel('Epoch')
+       plt.ylabel('Accuracy')
+       plt.title('Evaluation Accuracy per Epoch')
+       plt.legend()
+       plt.grid()
+       plt.savefig(os.path.join(MODEL_OUTPUT_DIR, 'accuracy_plot.png'))
+       plt.close()
+    else:
+       print("⚠️ Insufficient or mismatched data to plot accuracy curve.")
+
+
+    # 3. Classification Report Heatmap
+    target_labels = [processor.id2label[i] for i in range(len(processor.id2label))]
+    predictions = trainer.predict(tokenized_ds["test"])
+    y_true = predictions.label_ids
+    y_pred = np.argmax(predictions.predictions, axis=1)
+
+    report = classification_report(
+    y_true,
+    y_pred,
+    output_dict=True,
+    zero_division=0,
+    labels=list(range(len(target_labels))),
+    target_names=target_labels
     )
 
-    # Plot Training and Validation Accuracy
-    plt.figure(figsize=(10, 6))
-    plt.plot(eval_metrics['epoch'], eval_metrics['accuracy'], label='Validation Accuracy', marker='o')
-    plt.title('Validation Accuracy')
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy')
-    plt.grid(True)
-    plt.legend(prop=bengali_font)
-    plt.savefig('./csebuetnlp/csebuetnlp_accuracy_plot.png')
-    plt.close()
+    metrics = ['precision', 'recall', 'f1-score']
+    report_matrix = np.array([[report[label][metric] for metric in metrics] for label in target_labels])
 
-    # Plot Training and Validation Loss
-    plt.figure(figsize=(10, 6))
-    plt.plot(train_metrics['epoch'], train_metrics['loss'], label='Training Loss', marker='o')
-    plt.plot(eval_metrics['epoch'], eval_metrics['loss'], label='Validation Loss', marker='o')
-    plt.title('Training and Validation Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.grid(True)
-    plt.legend(prop=bengali_font)
-    plt.savefig('./sagorsarker/sagorsarker_loss_plot.png')
-    plt.close()
-    
-    # Filter out 'accuracy', 'macro avg', etc.
-    # Convert to DataFrame (excluding "accuracy", "macro avg", "weighted avg")
-    # Create DataFrame from classification report dict
-    target_labels = ['আঘাত বা চপেটাঘাত', 'তীব্র বা উগ্র', 'উচ্চ মূল্য বা দাম', 'চোখের রোগ', 
-                 'ভ্যাকসিন', 'পশুর পাল', 'কোনো অনুষ্ঠান বা উৎসবের পাল', 'কপালে পরা অলংকার/সাজসজ্জা']
-    
-    metrics_df = pd.DataFrame(cls_report).T.drop(["accuracy", "macro avg", "weighted avg"])
-    metrics_df = metrics_df[['precision', 'recall', 'f1-score']]
-    selected_df = metrics_df.loc[target_labels]
-    # Top 8
-    plt.figure(figsize=(12, 8))
-    sns.heatmap(selected_df, annot=True, fmt=".2f", cmap="YlGnBu", cbar=True)
-    plt.title("Per-Class Precision, Recall, and F1-score", fontproperties=bengali_font)
-    plt.xlabel("Metric")
-    plt.ylabel("Class Label", fontproperties=bengali_font)
-    plt.xticks(fontsize=12)
-    plt.yticks(rotation=0, fontproperties=bengali_font, fontsize=10)
+    plt.figure(figsize=(12, 6))
+    sns.heatmap(report_matrix, annot=True, xticklabels=metrics, yticklabels=target_labels, cmap="YlGnBu", fmt=".2f")
+    plt.title("Classification Report Heatmap")
     plt.tight_layout()
-    plt.savefig("./sagorsarker/classification_report_heatmap_top_8.png")
+    plt.savefig(os.path.join(MODEL_OUTPUT_DIR, 'classification_report_heatmap.png'))
     plt.close()
 
-    # ------------------ Top 8 Classes CM ------------------
-    labels = processor.sense_labels  # full label list used for classification
-    cm = confusion_matrix(eval_labels, eval_predictions)
-    
-    # Map label to index
-    label_to_index = {label: idx for idx, label in enumerate(labels)}
-    
-    # Get indices for your specific labels
-    selected_indices = [label_to_index[label] for label in target_labels]
-    
-    # Slice the confusion matrix
-    selected_cm = cm[np.ix_(selected_indices, selected_indices)]
-
-    
+    # 4. Confusion Matrix
+    cm = confusion_matrix(y_true, y_pred)
     plt.figure(figsize=(10, 8))
-    sns.heatmap(selected_cm, annot=True, fmt="d", cmap="Blues",
-                xticklabels=target_labels, yticklabels=target_labels)
-    plt.xlabel("Predicted", fontproperties=bengali_font)
-    plt.ylabel("True Label", fontproperties=bengali_font)
-    plt.title("Confusion Matrix for Selected Classes", fontproperties=bengali_font)
-    plt.xticks(rotation=45, ha='right', fontproperties=bengali_font)
-    plt.yticks(rotation=0, fontproperties=bengali_font)
+    sns.heatmap(cm, annot=True, fmt='d', xticklabels=target_labels, yticklabels=target_labels, cmap="Blues")
+    plt.xlabel('Predicted')
+    plt.ylabel('True')
+    plt.title('Confusion Matrix')
     plt.tight_layout()
-    plt.savefig("./sagorsarker/confusion_matrix_top8.png")
+    plt.savefig(os.path.join(MODEL_OUTPUT_DIR, 'confusion_matrix.png'))
     plt.close()
 
-    return trainer, eval_metrics, train_metrics, cls_report
-
-
-# Predictor Class
-class BengaliWSDPredictor:
-    def __init__(self, model_dir, device="cpu"):
-        self.tokenizer = AutoTokenizer.from_pretrained(model_dir)
-        self.model = AutoModelForSequenceClassification.from_pretrained(model_dir).to(device)
-        self.model.eval()
-        self.id2label = self.model.config.id2label  # Load from config
-        self.device = device
-
-    def predict(self, sentences, target_words):
-        if isinstance(sentences, str):
-            sentences = [sentences]
-            target_words = [target_words]
-        
-        marked_sents = [sent.replace(word, f"[TGT]{word}[/TGT]") for sent, word in zip(sentences, target_words)]
-        inputs = self.tokenizer(
-            marked_sents,
-            return_tensors="pt",
-            truncation=True,
-            max_length=128,
-            padding=True
-        ).to(self.device)
-
-        with torch.no_grad():
-            outputs = self.model(**inputs)
-            pred_label_ids = torch.argmax(outputs.logits, dim=1).tolist()
-        
-        return [self.id2label[pred_id] for pred_id in pred_label_ids]
-        
 # Main Execution
 if __name__ == "__main__":
-    # Train and get metrics
-    trainer, eval_metrics, train_metrics, cls_report = train_wsd_system()
-
-    # Print classification report
-    print("\n📊 Classification Report")
-    print(cls_report)
-
-    predictor = BengaliWSDPredictor(MODEL_OUTPUT_DIR, device="cpu")
-
-    test_cases = [
-        ("বাজারে মাংসের দাম এত চড়া যে অনেকে নিরামিষ খাবারের দিকে ঝুঁকছে", "চড়া"),
-        ("সন্ধ্যার আরতির সঙ্গে মিলিয়ে মন্দির প্রাঙ্গণে তরঙ্গের ধ্বনি ছড়িয়ে পড়ে", "তরঙ্গ"),
-        ("গ্রামে পহেলা বৈশাখের পাল ছিল খুবই রঙিন এবং আনন্দময়", "পাল"),
-        ("যত বেশি ধর্মীয় ধারায় মনোনিবেশ করা যায়, তত বেশি আত্মবিশ্বাসের অনুভূতি তৈরি হয়", "ধারা")
-    ]
-    print("\n🔍 Test Predictions")
-    for sentence, word in test_cases:
-        prediction = predictor.predict(sentence, word)
-        print(f"Sentence: {sentence}")
-        print(f"Target Word: '{word}' → Predicted Sense: {prediction}")
-        print("-" * 60)
-
+    train_wsd_system()
