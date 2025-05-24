@@ -1,0 +1,88 @@
+4 Design and Development
+
+
+Developing a robust Word Sense Disambiguation (WSD) system for the Bangla language involves leveraging recent advances in transformer-based language models while addressing the unique challenges posed by the language’s rich morphology and semantic ambiguity. To maximize performance and explore model effectiveness, this work employs two state-of-the-art pretrained Bangla BERT variants: **`csebuetnlp/banglabert`** and **`sagorsarker/bangla-bert-base`**. These models serve as the foundational encoders that provide contextualized word embeddings essential for distinguishing among multiple senses of polysemous words.
+The overall design adopts a modular framework that facilitates the integration of both models within the same pipeline, allowing for experimentation with different architectures and comparison of their impact on disambiguation accuracy. This modularity also supports token-level enhancements, such as the insertion of special markers around the ambiguous target word, which helps the model focus attention on the relevant part of the input sentence.
+Data collection and integration constitute a critical phase, involving the curation of a comprehensive dataset featuring carefully annotated polysemous Bangla words with multiple senses, supported by context-rich example sentences. This dataset underpins the supervised training of both BERT models, enabling them to learn nuanced semantic distinctions.
+The model design centers on fine-tuning each pretrained BERT encoder with a classification head that projects the contextualized `[CLS]` token embedding into a probability distribution over the possible senses via a softmax function. This design choice ensures that both models can be trained and evaluated under comparable settings, facilitating an objective assessment of their strengths and limitations.
+Subsequent sections provide a detailed exposition of the system’s architectural layout, data strategies, and model configurations, forming a comprehensive account of the design and development journey.
+
+
+4.1 System Architecture Design
+
+[Add a diagram]
+
+The proposed Word Sense Disambiguation (WSD) system for Bangla is organized into a modular pipeline comprising several key components, each handling a specific responsibility in the overall workflow. The architecture ensures seamless transition from raw annotated data to final model inference. The following subsections describe the structure and functionality of each part in detail.
+
+4.1.1 Raw Annotated Dataset (JSON Format)
+The system begins with a manually annotated dataset stored in JSON format, where each entry corresponds to a Bangla polysemous word. The structure of each entry consists of a `word` field that identifies the ambiguous word, followed by a `senses` array. Each item within the `senses` array contains a `sense` label, which specifies a particular meaning of the word, along with an `examples` array that includes multiple sentences demonstrating how that sense is used in natural language contexts. This format allows for clear alignment between each word’s possible meanings and their real-world usage, forming a reliable foundation for training a word sense disambiguation model.
+
+
+4.1.2 Data Preprocessing & Label Encoding
+The data preprocessing in the project is handled by a dedicated module named **BengaliWSDDataProcessor**, which is responsible for preparing the dataset for training and evaluation. The first step in this process is **flattening**, where the originally nested data structure—organized as words mapped to multiple senses, each with several example sentences—is transformed into a flat format. In this flattened representation, each record contains a single sentence, the target ambiguous word, and the correct sense label. Following this, the processor performs **label encoding** to facilitate model training. It compiles all unique sense labels from the dataset and creates two essential mappings: **label2id**, which assigns a unique integer ID to each sense label, and **id2label**, which reverses this mapping to retrieve the original sense label from its corresponding ID. This structured approach ensures the data is in a format suitable for machine learning models to process effectively.
+
+
+4.1.3 Dataset Construction
+After preprocessing, the flattened and encoded data is loaded into a **HuggingFace-compatible `Dataset` object**, which facilitates streamlined handling for model training and evaluation. This dataset is structured with the following key fields: **`sentence`**, which contains the full sentence including the ambiguous word; **`target_word`**, specifying the word whose sense needs to be disambiguated; **`sense`**, representing the textual form of the word’s intended meaning; and **`label`**, the corresponding integer class ID assigned during label encoding. This standardized format not only ensures consistency across the data but also enables efficient processing, batching, and integration with modern NLP training pipelines.
+
+
+4.1.4 Target Word Marking & Tokenization
+To help the model effectively identify and focus on the word that requires disambiguation, **custom marker tokens `[TGT]` and `[/TGT]` are inserted around the target word** within each sentence. This annotated version of the sentence is then passed through a tokenizer compatible with the **BanglaBERT model**, ensuring the input format aligns with the model’s expectations. The tokenization process produces three key components: **`input_ids`**, which are the numerical token IDs representing the sentence; **`attention_mask`**, which differentiates meaningful tokens from padding; and **`label`**, which is the integer class ID indicating the correct sense of the target word. The use of these marker tokens is crucial, as it explicitly highlights the word of interest, thereby guiding the model’s attention during training and improving the effectiveness of the disambiguation process.
+
+
+4.1.5 Model: Fine-Tuned BanglaBERT for Classification
+The tokenized inputs are fed into a **fine-tuned transformer-based model** configured for **sequence classification**. For experimentation, two pretrained **Bangla BERT** models are utilized: **`csebuetnlp/banglabert`** and **`sagorsarker/bangla-bert-base`**. To adapt these models for the word sense disambiguation task, a **classification head** is appended, consisting of a linear layer followed by a **softmax activation function**. This setup allows the model to generate a **probability distribution** over all possible sense classes for a given input sentence. Furthermore, to ensure compatibility with the custom preprocessing, the model’s **token embeddings are resized** to include the newly introduced special tokens `[TGT]` and `[/TGT]`. This adjustment enables the model to properly interpret and leverage the markers that highlight the disambiguation target, thereby enhancing its performance on the task.
+
+
+4.1.6 Model Training Pipeline
+Training is carried out using the HuggingFace Trainer API, which offers an efficient and standardized framework for fine-tuning transformer-based models. The model optimizes the CrossEntropyLoss function, appropriate for the multi-class classification task of word sense disambiguation. For optimization, the AdamW optimizer is utilized due to its proven effectiveness in training large pretrained language models. Throughout the training process, key evaluation metrics including Accuracy, Precision, Recall, and F1-score are monitored to provide a comprehensive assessment of the model’s performance. Training runs with a learning rate of 3e-5, over 15 epochs, and a batch size of 32. After each epoch, the model’s performance is evaluated on the reserved 10% validation set, and only the checkpoint with the best validation performance is retained. This strategy ensures that the final selected model generalizes well and avoids overfitting.
+
+4.1.7 Model Saving & Checkpointing
+Upon completion of training, the final model along with its tokenizer are saved to the output directory **`/[Model Name]_bangla_wsd_model/`**. Throughout the training process, the framework manages intermediate checkpoints automatically, retaining only the best-performing version based on evaluation loss. This ensures efficient storage use while preserving the most effective model for deployment or further use.
+
+4.1.8 Testing & Evaluation
+For evaluation, both the validation and test sets are used to assess the model’s performance comprehensively. Key quantitative metrics such as F1-score, Precision, and Accuracy are calculated to measure classification effectiveness. Additionally, a confusion matrix is generated to visualize the distribution of correct and incorrect predictions across all sense classes, providing deeper insights into specific areas where the model performs well or struggles. To aid interpretability, the confusion matrix is displayed as a heatmap, highlighting patterns of misclassification. Furthermore, training progress is tracked through graphical plots of accuracy and loss over epochs, generated for both validation and test phases. These visualizations help monitor the model’s learning behavior and diagnose potential issues like overfitting or underfitting, ensuring a robust and reliable evaluation.
+
+4.1.9 Deployment / Inference
+In the deployment phase, the fine-tuned BanglaBERT model is utilized to perform word sense disambiguation on new, unseen sentences. The ambiguous target word within each sentence is clearly marked using special tokens [TGT] and [/TGT] to maintain consistency with the training process and help the model focus on the relevant word. These marked sentences are tokenized using the same tokenizer applied during training, ensuring proper input formatting for the model. The processed input is then fed into the model, which generates probability distributions over the possible word senses through a softmax layer. The sense with the highest predicted probability is selected as the final output. This approach allows the model to generalize well to diverse contexts and be effectively applied in real-world scenarios such as natural language understanding, machine translation, and information retrieval tasks involving Bangla text. The deployment design emphasizes both accuracy and efficiency, enabling practical use of the model for real-time inference.
+
+
+4.2 Data Collection and Integration
+The dataset used in this system was manually constructed to support Bangla Word Sense Disambiguation. Due to the scarcity of high-quality, publicly available datasets for Bangla, a custom annotated dataset was developed in JSON format. Each entry in this dataset represents a Bangla polysemous word and contains a list of senses, with each sense associated with several example sentences demonstrating its use in different contexts. This structure allows the model to learn how context influences the meaning of an ambiguous word.
+The dataset is stored as a JSON file and is ingested into the system using the BengaliWSDDataProcessor class, as defined in the code. This processor reads the file and performs necessary preprocessing. It flattens the nested structure—extracting each sentence-sense pair as a separate training instance—and constructs a unified list of labeled examples. During this process, it also generates label mappings (label2id and id2label) that convert textual sense labels into numerical class IDs required for model training and prediction.
+Once processed, the data is formatted into a HuggingFace Dataset object. Each entry contains the sentence, the ambiguous word (target_word), the textual sense label (sense), and its corresponding class ID (label). This dataset is then split into training, validation, and testing subsets (80%, 10%, 10% respectively) to support both model development and evaluation phases. The integration ensures that the dataset seamlessly flows into the rest of the pipeline, maintaining compatibility with tokenization, model training, and evaluation procedures defined in the system.
+
+
+
+4.3 Model Design
+
+[include a diagram]
+
+The design of the model is centered around the effective use of pretrained transformer-based language models, specifically BanglaBERT, to perform word sense disambiguation (WSD) in Bangla text. The architecture carefully highlights the target ambiguous word, processes the input through deep contextual encoding, and classifies the sense using a learned classification layer. Each step in the pipeline plays a crucial role in capturing contextual nuances and accurately predicting the intended meaning of polysemous words.
+
+4.3.1 Input Sentence Preparation:
+Each input sentence contains a target polysemous word that needs disambiguation. To explicitly inform the model about which word to focus on, the target word is enclosed within special markers [TGT] and [/TGT]. This marking guides the model to pay special attention to this word’s context while processing the sentence.
+
+4.3.2 Tokenization with BanglaBERT Tokenizer:
+The prepared sentence is tokenized using the tokenizer associated with the BanglaBERT model. This tokenizer converts the sentence into a sequence of token IDs, which are numerical representations of subword units. Special tokens [CLS] (start of sentence) and [SEP] (end of sentence) are added to conform with the transformer input format. Additionally, an attention mask is generated to indicate which tokens should be attended to by the model during encoding, ensuring padded tokens are ignored.
+
+4.3.3 Contextual Encoding via BanglaBERT:
+The tokenized input is passed through the pretrained BanglaBERT encoder, which consists of 12 transformer layers. Each layer applies self-attention mechanisms and feedforward neural networks to generate deep contextualized embeddings. The output is a sequence of hidden states—each corresponding to a token in the input—that encapsulate semantic and syntactic information from the entire sentence.
+
+4.3.4 [CLS] Token Embedding Extraction:
+From the sequence of hidden states, the embedding corresponding to the [CLS] token is extracted. This vector, with a fixed dimensionality of 768, is designed to represent a holistic summary of the sentence’s meaning, including the context of the target word. It serves as the input feature vector for downstream classification.
+
+4.3.5 Classification Head:
+The extracted [CLS] embedding is fed into a fully connected linear layer which acts as a classification head. This layer transforms the embedding into logits corresponding to each possible sense class for the target word. A softmax function is applied to convert these logits into probabilities, yielding a distribution over the senses and allowing the model to output the most probable meaning.
+
+4.3.6 Training and Evaluation Procedure:
+During training, the model optimizes the CrossEntropyLoss between the predicted sense distribution and the true sense label, enabling it to learn discriminative patterns. In the evaluation phase, predictions are made by selecting the class with the highest probability (argmax). Performance is quantified through multiple metrics—Accuracy, Precision, Recall, and F1-score—to provide a comprehensive assessment of the model’s classification capability.
+
+4.3.7 Testing and Inference:
+For unseen sentences during testing or real-world deployment, the same input preparation and processing pipeline is applied. The fine-tuned model predicts the most appropriate sense for the target word based on its learned knowledge, enabling effective word sense disambiguation in practical applications.
+
+
+
+
+
+
