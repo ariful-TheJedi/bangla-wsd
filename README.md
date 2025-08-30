@@ -48,6 +48,3 @@ Bengali, spoken by over **250 million people**, is morphologically rich and high
 
 ---
 
-
-### Example 1
-**Input Sentence:**  
