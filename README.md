@@ -1,4 +1,4 @@
-# 📖 Bengali Word Sense Disambiguation (WSD) using BERT
+# 📖 “Bengali Word Sense Disambiguation Using Supervised Approach (BERT)”
 
 WSD is the task of determining the correct meaning of a polysemous word based on its **context**.  
 
